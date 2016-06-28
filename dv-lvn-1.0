@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Delta-V for LF-only LV-N engines after KSP 1.0
+
+MASS=${1:-25000}
+LF=${2:-180}
+
+# We assume LV-N engines
+ISP=${3:-800}
+
+# Gravitational constant
+G=9.81
+
+printf '%.1f\n' $(bc -l <<<"$G*$ISP*l($MASS/($MASS-5*($LF)))")

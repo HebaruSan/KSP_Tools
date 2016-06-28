@@ -1,0 +1,340 @@
+#!/usr/bin/perl -w
+#	TODO:
+#	1.	Ion engines and Xenon
+
+
+use strict;
+use Getopt::Long;
+use List::MoreUtils;
+use Set::Scalar;
+
+my $G = 9.81;
+my $lvn_needs_odixizer = 0;
+my $physicsless_means_massless = 0;
+
+# Mass of one unit of each resource
+my %masses = (
+	LiquidFuel	=> 0.005,
+	Oxidizer	=> 0.005,
+	SolidFuel	=> 0.0075,
+	MonoPropellant	=> 0.004,
+	'EVA Propellant'	=> 0.004,
+	ElectricCharge	=> 0,
+	IntakeAir	=> 0,
+	XenonGas	=> 0.0001,
+	Ore	=> 0.010,
+	Ablator	=> 0.001,
+);
+
+# Parts that are marked as physicsless, which meant massless once upon a time
+my $massless_set = new Set::Scalar((
+	'commDish', 'longAntenna',
+	'batteryPack', 'ksp.r.largeBatteryPack',
+	'spotLight2',
+	'sensorGravimeter', 'sensorThermometer', 'sensorAccelerometer',
+	'RCSBlock', 'linearRcs', 'vernierEngine',
+	'telescopicLadderBay',
+	'solarPanels5',
+	'smallHardpoint',
+	'SmallGearBay',
+	'fuelLine', 'strutConnector',
+));
+
+# We need multiple specific impulse tables to handle all versions
+my %isps;
+
+# Specific impulses from 0.90 and earlier, extracted from parts files
+my %isps_090 = (
+	'kerbalEVA'	=> 316, # Space suit thrusters, extrapolated from assumptions and approximations on wiki
+	'sepMotor1'	=> 100,	# solidBoosterSep
+	'solidBooster'	=> 240,	# solidBoosterRT-10
+	'MassiveBooster'	=> 250,	# MassiveSRB
+	'solidBooster1-1'	=> 250,	# solidBoosterBACC
+	'linearRcs'	=> 260,	# linearRCS
+	'RCSBlock'	=> 260,	# rcsBlockRV-105
+	'vernierEngine'	=> 260,	# vernorEngine
+	'microEngine'	=> 290,	# liquidEngineLV-1
+	'radialEngineMini'	=> 290,	# liquidEngineLV-1R
+	'omsEngine'	=> 290,	# OMSEngine
+	'smallRadialEngine'	=> 300,	# liquidEngine24-77
+	'Size2LFB'	=> 340,	# Size2LFB
+	'liquidEngineMini'	=> 350,	# liquidEngine48-7S
+	'LaunchEscapeSystem'	=> 360,	# LaunchEscapeSystem
+	'liquidEngine1-2'	=> 360,	# liquidEngineMainsail
+	'radialLiquidEngine1-2'	=> 360,	# liquidEngineMk55
+	'RAPIER'	=> 360,	# rapierEngine
+	'Size3EngineCluster'	=> 360,	# Size3EngineCluster
+	'liquidEngine'	=> 370,	# liquidEngineLV-T30
+	'liquidEngine2'	=> 370,	# liquidEngineLV-T45
+	'engineLargeSkipper'	=> 370,	# liquidEngineSkipper
+	'Size3AdvancedEngine'	=> 380,	# Size3AdvancedEngine
+	'toroidalAerospike'	=> 390,	# liquidEngineAerospike
+	'liquidEngine3'	=> 390,	# liquidEngineLV-909
+	'liquidEngine2-2'	=> 390,	# liquidEnginePoodle
+	'nuclearEngine'	=> 800,	# liquidEngineLV-N
+);
+
+# Specific impulses from 1.0 and later (vacuum only), extracted from parts files
+my %isps_100 = (
+	'kerbalEVA'	=> 316, # Space suit thrusters, extrapolated from assumptions and approximations on wiki
+	'sepMotor1'	=> 154,	# solidBoosterSep
+	'solidBooster_sm'	=> 165,	# solidBoosterRT-5
+	'LaunchEscapeSystem'	=> 180,	# launchEscapeSystem
+	'solidBooster'	=> 195,	# solidBoosterRT-10
+	'solidBooster1-1'	=> 210,	# solidBoosterBACC
+	'MassiveBooster'	=> 220,	# MassiveSRB
+	'linearRcs'	=> 240,	# linearRCS
+	'RCSBlock'	=> 240,	# rcsBlockRV-105
+	'omsEngine'	=> 250,	# OMSEngine
+	'vernierEngine'	=> 260,	# vernorEngine
+	'smallRadialEngine'	=> 290,	# liquidEngine24-77
+	'radialEngineMini'	=> 290,	# liquidEngineLV-1R
+	'liquidEngineMini'	=> 300,	# liquidEngine48-7S
+	'liquidEngine'	=> 300,	# liquidEngineLV-T30
+	'Size2LFB'	=> 300,	# Size2LFB
+	'radialLiquidEngine1-2'	=> 305,	# liquidEngineMk55
+	'RAPIER'	=> 305,	# rapierEngine
+	'liquidEngine1-2'	=> 310,	# liquidEngineMainsail
+	'microEngine'	=> 315,	# liquidEngineLV-1
+	'SSME'	=> 315,	# liquidEngineSSME
+	'Size3EngineCluster'	=> 315,	# Size3EngineCluster
+	'liquidEngine2'	=> 320,	# liquidEngineLV-T45
+	'engineLargeSkipper'	=> 320,	# liquidEngineSkipper
+	'toroidalAerospike'	=> 340,	# liquidEngineAerospike
+	'Size3AdvancedEngine'	=> 340,	# Size3AdvancedEngine
+	'liquidEngine3'	=> 345,	# liquidEngineLV-909
+	'liquidEngine2-2'	=> 350,	# liquidEnginePoodle
+	'nuclearEngine'	=> 800,	# liquidEngineLV-N
+);
+
+# Quantities that should be summed across parts per vessel
+my @summables = (
+	'mass',
+	'fuelmass',
+	'LiquidFuel',
+	'Oxidizer',
+	'MonoPropellant',
+	'EVA Propellant',
+);
+
+my %colnames = (
+	'kg'	=> 'Mass',
+	'LiquidFuel'	=> 'LF',
+	'Oxidizer'	=> 'Ox',
+	'MonoPropellant'	=> 'Monoprop',
+	'isp'	=> 'ISP',
+	'lf_dv'	=> 'LF Δv',
+	'rcs_dv'	=> 'RCS Δv',
+);
+
+my %colparams = (
+	'M' => ['kg'],
+
+	'd' => ['lf_dv', 'rcs_dv'],
+	'l' => ['LiquidFuel', 'Oxidizer', 'isp', 'lf_dv'],
+	'r' => ['MonoPropellant', 'rcs_dv'],
+);
+
+my $colparam = 'Mlr';# join('', sort(keys(%colparams)));
+GetOptions('cols=s' => \$colparam);
+my @colkeys = ();
+if (defined($colparam) && $colparam ne '') {
+	foreach my $c (split('', $colparam)) {
+		push(@colkeys, @{$colparams{$c}});
+	}
+	@colkeys = List::MoreUtils::uniq(@colkeys);
+}
+
+sub print_header {
+	print "NOTE: This tool does not account for staging or atmospheric ISP variation!\n";
+	foreach my $column (@colkeys) {
+		printf "\%8s  ", $colnames{$column};
+	}
+	print "\n";
+}
+
+sub rcs_delta_v {
+	my ($vesselref) = @_;
+	my $mass = 1000 * ($vesselref->{'mass'} + $vesselref->{'fuelmass'});
+	my $rcs = $vesselref->{'MonoPropellant'};
+	my $eva = $vesselref->{'EVA Propellant'};
+
+	if (defined($eva)) {
+		my $isp = $vesselref->{'isp'};
+		return $G * $isp * log($mass / ($mass - 1000 * $masses{'EVA Propellant'} * $eva));
+	} elsif (defined($rcs)) {
+		# All RCS thrusters currently have same ISP
+		my $isp = $isps{'RCSBlock'};
+		return $G * $isp * log($mass / ($mass - 1000 * $masses{'MonoPropellant'} * $rcs));
+	}
+	return 0;
+}
+
+sub lf_delta_v {
+	my ($vesselref) = @_;
+	my $isp = $vesselref->{'isp'} || 0;
+	my $mass = 1000 * ($vesselref->{'mass'} + $vesselref->{'fuelmass'});
+	my $lf = $vesselref->{'LiquidFuel'};
+	my $ox = $vesselref->{'Oxidizer'};
+
+	my $using_lvn = ($isp == 800);
+
+	if ($using_lvn && !$lvn_needs_odixizer) {
+		return $G * $isp * log($mass / ($mass - 1000 * $masses{'LiquidFuel'} * $lf));
+	} else {
+		if (defined($lf) && defined($ox) && defined($isp)) {
+			if ($ox * 270.0 / 330.0 > $lf) {
+				$ox = $lf * 330.0 / 270.0;
+			} elsif ($ox * 270 / 330.0 < $lf) {
+				$lf = $ox * 270.0 / 330.0;
+			}
+			return $G * $isp * log($mass / ($mass
+				- 1000 * $masses{'LiquidFuel'} * $lf
+				- 1000 * $masses{'Oxidizer'} * $ox));
+		}
+	}
+	return 0;
+}
+
+sub print_vessel {
+	my ($vesselref) = @_;
+	return unless defined($vesselref->{'fuelmass'}) && $vesselref->{'fuelmass'} > 0;
+	if (defined($vesselref->{'name'}) && $vesselref->{'name'} ne '') {
+		$vesselref->{'kg'} = 1000 * ($vesselref->{'mass'} + $vesselref->{'fuelmass'});
+		foreach my $key (@colkeys) {
+			$vesselref->{'lf_dv'} = lf_delta_v($vesselref) if $key eq 'lf_dv';
+			$vesselref->{'rcs_dv'} = rcs_delta_v($vesselref) if $key eq 'rcs_dv';
+			printf "\%8.1f  ", (defined($vesselref->{$key}) ? $vesselref->{$key} : 0);
+		}
+		print $vesselref->{'name'};
+		print "\n";
+	}
+}
+
+sub process_section {
+	my ($vesselref, $label, $sectionref) = @_;
+
+	if ($label =~ m(^\s*GAME$)) {
+		#
+	} elsif ($label =~ m(^\s*VESSEL$)) {
+		print_vessel($vesselref);
+		return;
+	} elsif ($label =~ m(^\s*RESOURCE$)) {
+		$sectionref->{$sectionref->{'name'}} += $sectionref->{'amount'};
+		if (defined($masses{$sectionref->{'name'}})) {
+			$sectionref->{'fuelmass'} += $masses{$sectionref->{'name'}} * $sectionref->{'amount'};
+		} else {
+			print STDERR $sectionref->{'name'} . " mass undefined\n";
+		}
+	} elsif ($label =~ m(^\s*PART$)) {
+		if (defined($isps{$sectionref->{'name'}})) {
+			$sectionref->{'isp'} = $isps{$sectionref->{'name'}};
+		}
+	}
+	# Add part info to vessel
+	foreach my $key (@summables) {
+		if (defined($sectionref->{$key})) {
+			next if $key eq 'mass' && $physicsless_means_massless && $massless_set->has($sectionref->{'name'});
+			$vesselref->{$key} += $sectionref->{$key};
+		}
+	}
+	if (defined($sectionref->{'isp'})) {
+		if (!defined($vesselref->{'isp'}) || $vesselref->{'isp'} < $sectionref->{'isp'}) {
+			$vesselref->{'isp'} = $sectionref->{'isp'};
+		}
+	}
+}
+
+sub set_version {
+	my ($major, $minor, $patch) = @_;
+
+	# Now we encode a bunch of behavior that changed over time
+
+	#printf("Version detected: major \%i, minor \%i, patch \%i\n", $major, $minor, $patch);
+
+	# ISPs
+	if ($major < 1) {
+		# Souposphere specific impulses before 1.0
+		%isps = %isps_090;
+	} else {
+		# Post-souposphere specific impulses
+		%isps = %isps_100;
+	}
+
+	# Fuel requirements
+	if ($major < 1) {
+		# LV-N requires oxidizer prior to 1.0
+		$lvn_needs_odixizer = 1;
+	} else {
+		# LV-N does not require oxidizer
+		$lvn_needs_odixizer = 0;
+	}
+
+	# Physicslessness and masslessness
+	if ($major < 1 || $patch < 1) {
+		# Physicsless parts were treated as massless prior to 1.0
+		$physicsless_means_massless = 1;
+	} else {
+		# Physicsless parts began adding their mass to their parent in version 1.0.1
+		$physicsless_means_massless = 0;
+	}
+}
+
+sub process_line {
+	my ($save, $vesselref, $label, $sectionref, $line) = @_;
+
+	if (my ($key, $value) = ($line =~ m((\S*) = (.*)))) {
+		$sectionref->{$key} = $value;
+		if ($label =~ m(GAME) && $key eq 'version') {
+			# The game version determines how we parse things, so we need to react to it as a special
+			# case before we finish the GAME section.
+			if (my ($major, $minor, $patch) = ($value =~ m((\d+)\.(\d+)\.(\d+)))) {
+				set_version($major, $minor, $patch);
+			}
+		}
+	} elsif ($line =~ m(})) {
+		# End of section with }, we're done
+		process_section($vesselref, $label, $sectionref);
+		return 0;
+	} else {
+		# Otherwise must be a new section, call recursively in case it contains useful info
+		parse_section($save, $vesselref, $line);
+	}
+	return 1;
+}
+
+sub parse_section {
+	my ($save, $vesselref, $label) = @_;
+
+	if ((my $line = <$save>) !~ m({)) {
+		print STDERR "Open brace not found in line $line\n";
+		return;
+	}
+	my $sectionref = {};
+	if ($label =~ m(VESSEL)) {
+		$vesselref = $sectionref;
+	}
+	while (my $line = <$save>) {
+		return unless process_line($save, $vesselref, $label, $sectionref, $line);
+	}
+}
+
+sub parse_savefile {
+	my ($savefile) = @_;
+	my $save;
+	unless (open($save, '<', $savefile)) {
+		print STDERR "Can't open $savefile. $!\n";
+		return;
+	}
+	print_header();
+	process_line($save, undef, undef, undef, scalar(<$save>));
+	close($save);
+}
+
+foreach my $savefile (@ARGV) {
+	if (!-f $savefile) {
+		print STDERR "$savefile not found\n";
+		next;
+	}
+	parse_savefile($savefile);
+}

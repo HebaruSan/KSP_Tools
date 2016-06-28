@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# CKAN is the Comprehensive Kerbal Archive Network, a system for managing mods for Kerbal Space Program.
+# https://github.com/KSP-CKAN
+# This is a wrapper around CKAN to perform some common tasks from the command line.
+# It keeps your installed mods up to date and asks you whether you want to install new mods when they become available.
+# It's intended to run on a Linux-like environment with common shell scripting utilities, including 'dialog'.
+
+# Check for availability of the non-bash commands we use, since it seems like the responsible thing to do.
+for CMD in mono dialog jq diff egrep mv
+do
+	if ! hash "$CMD" 2>/dev/null
+	then
+		echo "$CMD not found, but we need it for this script. You may be missing some packages."
+		exit 2
+	fi
+done
+
+# Go to the folder where CKAN lives, and where we will also store 3 files of our own metadata.
+# If you don't use your Downloads folder, use the environment variable CKANHOME to override.
+cd "${CKANHOME:-${HOME}/Downloads}"
+
+# Now print something if the program isn't here, in case anyone else ever uses this program.
+if [ ! -s ckan ]
+then
+	echo 'ckan not found. Set CKANHOME to its location. The default is $HOME/Downloads.'
+	echo 'Note that we will also store three files in the same folder:'
+	echo '	.ckan-avail.cur 	The currently available package list'
+	echo '	.ckan-avail.prev	The available package list from the previous run, for comparison'
+	echo '	.ckan-avail.diff	The diff of the previous two files'
+	exit 2
+fi
+
+# Now let's see where your CKAN registry is.
+REGISTRY="${KSPHOME:-${HOME}/.steam/steam/SteamApps/common/Kerbal Space Program}"/CKAN/registry.json
+if [ ! -f "${REGISTRY}" ]
+then
+	echo 'No CKAN registry file found. Normally this is in CKAN/registry.json under your KSP install.'
+	echo 'Set KSPHOME to your KSP folder so we can find it.'
+	exit 2
+fi
+
+# Now if you say -a, list all packages instead of showing only new
+while getopts 'a' arg
+do
+	case $arg in
+		a)
+			>.ckan-avail.cur
+			;;
+	esac
+done
+
+# Refresh the package list (may take a few seconds due to network traffic).
+mono ckan update
+
+# Check for upgrades of installed packages (by filtering out ones listed as up to date) and ask the user whether to install them
+# TODO - This could be smoother when everything is up to date. Consider more parsing and checking, but the format isn't very machine readable.
+# UPDATE - They changed the unicode symbol to a regular ASCII one, so we can do better now.
+CKANLIST=$(mono ckan list)
+UPDATES=$(echo -n "${CKANLIST}" | egrep '^[X^?]')
+if [ -n "${UPDATES}" ]
+then
+	if dialog --no-shadow --title 'Available Upgrades' --yes-label 'Upgrade' --no-label 'Quit' --yesno "${UPDATES}" $(tput lines) $(tput cols)
+	then
+		clear
+		mono ckan upgrade --all
+	else
+		clear
+	fi
+fi
+
+# Note which packages we already have installed regardless of their status
+declare -A insthash
+while read -r
+do
+	insthash[$REPLY]=1
+done < <(echo -n "${CKANLIST}" | egrep '^[-X^?]' | cut -d ' ' -f2)
+
+# Look for packages added since last time and give the user the option to install them.
+# This can also be slow, presumably again due to network traffic.
+echo 'Checking for installable packages...'
+mv -f .ckan-avail.cur .ckan-avail.prev
+mono ckan available | sed -e 's/([^)]*) //' > .ckan-avail.cur
+diff -Nu .ckan-avail.prev .ckan-avail.cur > .ckan-avail.diff
+if [ -s .ckan-avail.diff ]
+then
+	echo 'Retrieving package descriptions...'
+	AVAILABLE=''
+	JQ_CMD=''
+	COUNT=0
+	avail=()
+	while read -r
+	do
+		PKG=$(echo -n "$REPLY" | cut -d ' ' -f1)
+		# Skip packages that are already installed
+		if [ -z "${insthash[$PKG]}" ]
+		then
+			COUNT=$((1+$COUNT))
+			avail[$COUNT]=$PKG
+			if [ -n "${JQ_CMD}" ]
+			then
+				JQ_CMD="${JQ_CMD},"
+			fi
+			JQ_CMD="${JQ_CMD} (.available_modules[\"${PKG}\"].module_version[.available_modules[\"${PKG}\"].module_version | keys | max].abstract | split(\"\\n\") | join(\" \"))"
+		fi
+	done < <(egrep '^\+\*' .ckan-avail.diff | sed -e 's/^\+\* //')
+	pkgmenu=()
+	COUNT=0
+	while read -r
+	do
+		COUNT=$((1+$COUNT))
+		pkgmenu+=("${avail[$COUNT]}")
+		pkgmenu+=("$REPLY")
+		pkgmenu+=("off")
+		pkgmenu+=("$(echo -n $REPLY | tail -c $(($(tput cols)-2)))")
+	done < <(jq --raw-output "$JQ_CMD" < "$REGISTRY")
+	if PACKAGES=$(dialog --no-shadow --title 'Recently Added Packages' --item-help --checklist 'Available' $(tput lines) $(tput cols) $(tput lines) "${pkgmenu[@]}" 2>&1 >/dev/tty)
+	then
+		clear
+		if [ -n "${PACKAGES}" ]
+		then
+			mono ckan install ${PACKAGES}
+		else
+			echo 'No packages selected.'
+		fi
+	else
+		clear
+		echo 'Nothing installed.'
+	fi
+	
+else
+	echo 'No new packages available in repository.'
+fi
+

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+REGISTRY="${KSPHOME:-${HOME}/.steam/steam/SteamApps/common/Kerbal Space Program}"/CKAN/registry.json
+
+# Check for availability of the non-bash commands we use, since it seems like the responsible thing to do.
+for CMD in jq
+do
+	if ! hash "$CMD" 2>/dev/null
+	then
+		echo "$CMD not found, but we need it for this script. You may be missing some packages."
+		exit 2
+	fi
+done
+
+JQ_CMD=''
+for PKG in $@
+do
+	if [ -n "${JQ_CMD}" ]
+	then
+		JQ_CMD="${JQ_CMD},"
+	fi
+	#JQ_CMD="${JQ_CMD} (.available_modules.${PKG}.module_version[.available_modules.${PKG}.module_version | keys | max].abstract)"
+	JQ_CMD="${JQ_CMD} (.available_modules[\"${PKG}\"].module_version[.available_modules[\"${PKG}\"].module_version | keys | max].abstract | split(\"\\n\") | join(\" \"))"
+done
+jq --raw-output "$JQ_CMD" < "$REGISTRY"
+

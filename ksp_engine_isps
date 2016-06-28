@@ -1,0 +1,34 @@
+#!/bin/bash
+
+KSP_folder=${1:-"${HOME}/.local/share/Steam/SteamApps/common/Kerbal Space Program"}
+GAMEDATA="${KSP_folder}/GameData"
+
+if [ ! -d "${GAMEDATA}" ]
+then
+	echo "KSP folder not found at ${KSP_folder}."
+	echo "Please pass one as the first parameter."
+	exit 2
+fi
+
+dirlist=()
+for DIR in "${GAMEDATA}/Squad/Parts" "${GAMEDATA}/NASAmission/Parts"
+do
+	if [ -d "${DIR}" ]
+	then
+		dirlist+=("${DIR}")
+	fi
+done
+
+find "${dirlist[@]}" -name '*.cfg' | (
+	while read -r
+	do
+		PARTFILE="${REPLY}"
+		PARTNAME=$(grep -r -m1 'name = ' "${PARTFILE}" | tr -d '\r' | sed -e 's/.*name = //')
+		NICKNAME=$(basename "$(dirname \"${PARTFILE}\")")
+		ISP=$(grep -A 2 atmosphereCurve "${PARTFILE}" | tr -d '\r' | tail -n 1 | cut -d '=' -f2 | cut -d ' ' -f3)
+		if [[ -n "${ISP}" && "${ISP}" -lt 1000 ]]
+		then
+			echo "	'${PARTNAME}'	=> $ISP,	# ${NICKNAME}"
+		fi
+	done
+) | sort -k 3
