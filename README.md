@@ -22,7 +22,7 @@ A simplistic text UI for CKAN based on the `dialog` utility. Only handles update
 
 deltav
 ------
-Prints the delta V of a craft given command line parameters, by applying the [Tsiolkovsky rocket equation](https://en.wikipedia.org/wiki/Tsiolkovsky_rocket_equation):
+Prints the delta V of a craft by applying the [Tsiolkovsky rocket equation](https://en.wikipedia.org/wiki/Tsiolkovsky_rocket_equation), given command line parameters:
 
 1. Current mass in kilograms
 2. Oxidizer in in-game units
