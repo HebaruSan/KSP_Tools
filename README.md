@@ -12,6 +12,10 @@ ksp_engine_isps
 ---------------
 Given the location of a Kerbal Space Program installation, parses the parts files and prints a table of the specific impulses of all stock engines in Perl format. Intended for updating `ksp_save_dv`.
 
+ckan_registry
+-------------
+Print the path to the game folder for CKAN's current default installation.
+
 ckan_abstract
 -------------
 Given a mod name, extracts the long form description of it from the [CKAN](http://forum.kerbalspaceprogram.com/index.php?/topic/90246-the-comprehensive-kerbal-archive-network-ckan-package-manager-v1180-19-june-2016/) `registry.json` file.
@@ -19,6 +23,10 @@ Given a mod name, extracts the long form description of it from the [CKAN](http:
 ckan_updates
 ------------
 A simplistic text UI for CKAN based on the `dialog` utility. Only handles updates and installs.
+
+wget_ckan
+---------
+Downloads a version of CKAN and updates a symbolic link to point to the download.
 
 deltav
 ------

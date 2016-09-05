@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ -n "$1" ]
+then
+	if [ -n "$2" ]
+	then
+		cd "${HOME}/Downloads"
+		TARGET="ckan-${1}.exe"
+		wget -O "$TARGET" "$2"
+		ln -sf "$TARGET" ckan
+	else
+		echo "Need second parameter as URL to download."
+	fi
+else
+	echo "Need first parameter as CKAN version number."
+fi
+
+

@@ -1,15 +1,5 @@
 #!/bin/bash
 
-# Check for availability of the non-bash commands we use, since it seems like the responsible thing to do.
-for CMD in jq mono
-do
-	if ! hash "$CMD" 2>/dev/null
-	then
-		echo "$CMD not found, but we need it for this script. You may be missing some packages."
-		exit 2
-	fi
-done
-
 cd "${CKANHOME:-${HOME}/Downloads}"
 
 # Now print something if the program isn't here, in case anyone else ever uses this program.
@@ -23,7 +13,7 @@ then
 	exit 2
 fi
 
-# Use CKAN's default path to find the registry.json file
+# Use CKAN's default path to find the registry.json file 
 while read -r LINE
 do
 	if [ $(echo "${LINE}" | cut -c 24-26) = Yes ]
@@ -33,13 +23,4 @@ do
 	fi
 done < <(mono ckan ksp list | tail -n +3)
 
-JQ_CMD=''
-for PKG in $@
-do
-	if [ -n "${JQ_CMD}" ]
-	then
-		JQ_CMD="${JQ_CMD},"
-	fi
-	JQ_CMD="${JQ_CMD} (.available_modules[\"${PKG}\"].module_version[.available_modules[\"${PKG}\"].module_version | keys | max].abstract | split(\"\\n\") | join(\" \"))"
-done
-jq --raw-output "$JQ_CMD" < "$REGISTRY"
+echo "${REGISTRY}"
