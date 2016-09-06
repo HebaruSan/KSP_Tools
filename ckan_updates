@@ -79,9 +79,9 @@ fi
 
 # Note which packages we already have installed regardless of their status
 declare -A insthash
-while read -r
+while read -r PKG
 do
-	insthash[$REPLY]=1
+	insthash[$PKG]=1
 done < <(echo -n "${CKANLIST}" | egrep '^[-X^?]' | cut -d ' ' -f2)
 
 # Look for packages added since last time and give the user the option to install them.
@@ -97,9 +97,9 @@ then
 	JQ_CMD=''
 	COUNT=0
 	avail=()
-	while read -r
+	while read -r LINE
 	do
-		PKG=$(echo -n "$REPLY" | cut -d ' ' -f1)
+		PKG=$(echo -n "$LINE" | cut -d ' ' -f1)
 		# Skip packages that are already installed
 		if [ -z "${insthash[$PKG]}" ]
 		then
@@ -114,13 +114,13 @@ then
 	done < <(egrep '^\+\*' .ckan-avail.diff | sed -e 's/^\+\* //')
 	pkgmenu=()
 	COUNT=0
-	while read -r
+	while read -r PKG
 	do
 		COUNT=$((1+$COUNT))
 		pkgmenu+=("${avail[$COUNT]}")
-		pkgmenu+=("$REPLY")
+		pkgmenu+=("$PKG")
 		pkgmenu+=("off")
-		pkgmenu+=("$(echo -n $REPLY | tail -c $(($(tput cols)-2)))")
+		pkgmenu+=("$(echo -n $PKG | tail -c $(($(tput cols)-2)))")
 	done < <(jq --raw-output "$JQ_CMD" < "$REGISTRY")
 	if PACKAGES=$(dialog --no-shadow --title 'Recently Added Packages' --item-help --checklist 'Available' $(tput lines) $(tput cols) $(tput lines) "${pkgmenu[@]}" 2>&1 >/dev/tty)
 	then

@@ -20,9 +20,8 @@ do
 done
 
 find "${dirlist[@]}" -name '*.cfg' | (
-	while read -r
+	while read -r PARTFILE
 	do
-		PARTFILE="${REPLY}"
 		PARTNAME=$(grep -r -m1 'name = ' "${PARTFILE}" | tr -d '\r' | sed -e 's/.*name = //')
 		NICKNAME=$(basename "$(dirname \"${PARTFILE}\")")
 		ISP=$(grep -A 2 atmosphereCurve "${PARTFILE}" | tr -d '\r' | tail -n 1 | cut -d '=' -f2 | cut -d ' ' -f3)
