@@ -15,6 +15,6 @@ fi
 ISP=${4:-800}
 
 # Gravitational constant
-G=9.81
+G=9.80665
 
 printf '%.1f\n' $(bc -l <<<"$G*$ISP*l($MASS/($MASS-5*($OX+$LF)))")

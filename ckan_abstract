@@ -16,10 +16,6 @@ cd "${CKANHOME:-${HOME}/Downloads}"
 if [ ! -s ckan ]
 then
 	echo 'ckan not found. Set CKANHOME to its location. The default is $HOME/Downloads.'
-	echo 'Note that we will also store three files in the same folder:'
-	echo '	.ckan-avail.cur 	The currently available package list'
-	echo '	.ckan-avail.prev	The available package list from the previous run, for comparison'
-	echo '	.ckan-avail.diff	The diff of the previous two files'
 	exit 2
 fi
 

@@ -8,7 +8,7 @@ use Getopt::Long;
 use List::MoreUtils;
 use Set::Scalar;
 
-my $G = 9.81;
+my $G = 9.80665;
 my $lvn_needs_odixizer = 0;
 my $physicsless_means_massless = 0;
 
