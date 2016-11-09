@@ -28,6 +28,10 @@ wget_ckan
 ---------
 Downloads a version of CKAN and updates a symbolic link to point to the download.
 
+deltav.py
+---------
+A delta V calculator with a graphical interface, for hovering over the game when your mods are not yet updated.
+
 deltav
 ------
 Prints the delta V of a craft by applying the [Tsiolkovsky rocket equation](https://en.wikipedia.org/wiki/Tsiolkovsky_rocket_equation), given command line parameters:
