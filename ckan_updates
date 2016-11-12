@@ -28,6 +28,7 @@ then
 	echo '	.ckan-avail.cur 	The currently available package list'
 	echo '	.ckan-avail.prev	The available package list from the previous run, for comparison'
 	echo '	.ckan-avail.diff	The diff of the previous two files'
+	echo '	.ckan-inst	The list of files we tried to install last time'
 	exit 2
 fi
 
@@ -112,6 +113,20 @@ then
 			JQ_CMD="${JQ_CMD} (.available_modules[\"${PKG}\"].module_version[.available_modules[\"${PKG}\"].module_version | keys | max].abstract | split(\"\\n\") | join(\" \"))"
 		fi
 	done < <(egrep '^\+\*' .ckan-avail.diff | sed -e 's/^\+\* //')
+
+	declare -A previnst
+	previnst=()
+	if [ -f .ckan-inst ]
+	then
+		while read -r LINE
+		do
+			for PKG in $LINE
+			do
+				previnst[$PKG]=on
+			done
+		done < .ckan-inst
+	fi
+
 	pkgmenu=()
 	COUNT=0
 	while read -r PKG
@@ -119,7 +134,12 @@ then
 		COUNT=$((1+$COUNT))
 		pkgmenu+=("${avail[$COUNT]}")
 		pkgmenu+=("$PKG")
-		pkgmenu+=("off")
+		if [ "${previnst[${avail[$COUNT]}]}" = on ]
+		then
+			pkgmenu+=("on")
+		else
+			pkgmenu+=("off")
+		fi
 		pkgmenu+=("$(echo -n $PKG | tail -c $(($(tput cols)-2)))")
 	done < <(jq --raw-output "$JQ_CMD" < "$REGISTRY")
 	if PACKAGES=$(dialog --no-shadow --title 'Recently Added Packages' --item-help --checklist 'Available' $(tput lines) $(tput cols) $(tput lines) "${pkgmenu[@]}" 2>&1 >/dev/tty)
@@ -127,6 +147,7 @@ then
 		clear
 		if [ -n "${PACKAGES}" ]
 		then
+			echo "${PACKAGES}" > .ckan-inst
 			mono ckan install ${PACKAGES}
 		else
 			echo 'No packages selected.'
