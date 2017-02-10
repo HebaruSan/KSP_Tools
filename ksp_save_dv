@@ -2,11 +2,13 @@
 #	TODO:
 #	1.	Ion engines and Xenon
 
-
 use strict;
 use Getopt::Long;
 use List::MoreUtils;
 use Set::Scalar;
+use utf8;
+
+binmode STDOUT, ':utf8';
 
 my $G = 9.80665;
 my $lvn_needs_odixizer = 0;
@@ -148,7 +150,7 @@ if (defined($colparam) && $colparam ne '') {
 sub print_header {
 	print "NOTE: This tool does not account for staging or atmospheric ISP variation!\n";
 	foreach my $column (@colkeys) {
-		printf "\%8s  ", $colnames{$column};
+		printf "\%9s  ", $colnames{$column};
 	}
 	print "\n";
 }
@@ -204,7 +206,7 @@ sub print_vessel {
 		foreach my $key (@colkeys) {
 			$vesselref->{'lf_dv'} = lf_delta_v($vesselref) if $key eq 'lf_dv';
 			$vesselref->{'rcs_dv'} = rcs_delta_v($vesselref) if $key eq 'rcs_dv';
-			printf "\%8.1f  ", (defined($vesselref->{$key}) ? $vesselref->{$key} : 0);
+			printf "\%9.1f  ", (defined($vesselref->{$key}) ? $vesselref->{$key} : 0);
 		}
 		print $vesselref->{'name'};
 		print "\n";
