@@ -4,6 +4,12 @@ Command line utilities for automating common tasks related to [Kerbal Space Prog
 
 The contents of this repository are released into the public domain.
 
+## ksp_set_locale
+
+![ksp_set_locale screenshot](screenshots/ksp_set_locale.png)
+
+Edits the language setting with a menu.
+
 ## ksp_save_dv
 
 Parses a Kerbal Space Program save file and prints the delta V of each active craft. See code comments for known limitations.

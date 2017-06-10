@@ -1,0 +1,32 @@
+#!/bin/bash
+
+DEFAULTGAMEDIR="${HOME}/.local/share/Steam/SteamApps/common/Kerbal Space Program"
+
+if [ ! -x "${DEFAULTGAMEDIR}" ]
+then
+	echo "${DEFAULTGAMEDIR} not found."
+	echo 'Change the DEFAULTGAMEDIR variable in the script to the path where KSP is installed.'
+	exit 2
+fi
+
+BUILDID_PATH="${DEFAULTGAMEDIR}/buildID.txt"
+DEFAULT=$(grep ^language "${BUILDID_PATH}" | sed -e 's/^.*= //')
+
+declare -a LANGUAGES
+# Let the user pick a language, using the current as the default
+if [ -n "$DISPLAY" ]
+then
+	LANGUAGES=(en-us es-es ru ja zh-cn)
+	SELECTION=$(zenity --list --title 'Select Language' --text 'Available languages' --height 256 --width 384 --hide-header --column Language "${LANGUAGES[@]}")
+else
+	LANGUAGES=(en-us English es-es Spanish ru Russian ja Japanese zh-cn Simplified\ Chinese)
+	SELECTION=$(dialog --no-shadow --title 'Select Language' --default-item "$DEFAULT" --menu 'Available languages' $(tput lines) $(tput cols) $(tput lines) "${LANGUAGES[@]}" 2>&1 >/dev/tty)
+	clear
+fi
+
+# Store the user's choice to the file
+if [ -n "$SELECTION" -a "$SELECTION" != "$DEFAULT" ]
+then
+	sed -i -e "s/^language = .*\$/language = ${SELECTION}/" "${BUILDID_PATH}"
+fi
+
