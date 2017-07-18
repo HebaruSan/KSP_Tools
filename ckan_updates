@@ -35,9 +35,9 @@ fi
 # Now let's see where your CKAN registry is.
 while read -r LINE
 do
-	if [ $(echo "${LINE}" | cut -c 24-26) = Yes ]
+	if [[ $LINE =~ ^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+Yes[[:space:]]+([^[:space:]]+)$ ]]
 	then
-		REGISTRY=$(echo "${LINE}" | cut -c 33- )/CKAN/registry.json
+		REGISTRY=${BASH_REMATCH[1]}/CKAN/registry.json
 		break
 	fi
 done < <(mono ckan ksp list | tail -n +3)
