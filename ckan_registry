@@ -12,9 +12,9 @@ fi
 # Use CKAN's default path to find the registry.json file
 while read -r LINE
 do
-	if [ $(echo "${LINE}" | cut -c 24-26) = Yes ]
+	if [ $(echo "${LINE}" | awk '{print $3}') = Yes ]
 	then
-		REGISTRY=$(echo "${LINE}" | cut -c 33- )/CKAN/registry.json
+		REGISTRY=$(echo "${LINE}" | awk -F '  +' '{print $4}')/CKAN/registry.json
 		break
 	fi
 done < <(mono ckan ksp list | tail -n +3)
