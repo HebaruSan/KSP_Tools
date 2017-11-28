@@ -1,0 +1,53 @@
+#!/bin/bash
+
+declare -a tests
+tests=(
+	''
+
+	gui
+	search
+	upgrade
+	update
+	available
+	install
+	remove
+	scan
+	list
+	show
+	clean
+
+	repair
+	'repair registry'
+
+	ksp
+	'ksp list'
+	'ksp add'
+	'ksp rename'
+	'ksp forget'
+	'ksp default'
+
+	repo
+	'repo available'
+	'repo list'
+	'repo add'
+	'repo forget'
+	'repo default'
+
+	compat
+	'compat list'
+	'compat add'
+	'compat forget'
+
+	compare
+	version
+)
+
+for test in "${tests[@]}"
+do
+	fullcmd="mono ckan.exe ${test} --help"
+	printf "==%${#fullcmd}s\\n" | tr ' ' '='
+	echo "# ${fullcmd}"
+	echo
+	${fullcmd} 2>&1
+	echo
+done
