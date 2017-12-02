@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]
+then
+	declare -A hashes
+
+	REGISTRY="$HOME/.local/share/Steam/SteamApps/common/Kerbal Space Program/CKAN/registry.json"
+	while read LINE
+	do
+		HASH=$(echo -n "$LINE" | sha1sum | sed -e 's/^\(........\).*/\1/')
+		if [ -n "${hashes[$HASH]}" ]
+		then
+			echo "COLLISION: ${HASH^^} $LINE ${hashes[$HASH]}"
+		else
+			hashes[$HASH]=$LINE
+		fi
+	done < <(grep '"download"' "${REGISTRY}" | sed -e 's/^.*"download": "\(.*\)",$/\1/' | sort -u)
+else
+	for string
+	do
+		echo -n $string | sha1sum | awk '{print $1}'
+	done
+fi
+
