@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Download many files in parallel from GitHub to see if any fail.
+# https://github.com/KSP-CKAN/CKAN/issues/1817
+# https://github.com/aws/aws-sdk-js/issues/312
+# https://www.snellman.net/blog/archive/2017-07-20-s3-mystery/
+
+declare -a URLS
+URLS=(
+    # Astronomer's Visual Pack
+    'https://github.com/themaster402/AstronomersVisualPack/releases/download/v3.62/AVP.v.3.62.zip'
+    # GPP
+    'https://github.com/Galileo88/Galileos-Planet-Pack/releases/download/1.5.3/Galileos.Planet.Pack.1.5.3.zip'
+    # GPP Textures
+    'https://github.com/Galileo88/Galileos-Planet-Pack/releases/download/3.0.0/GPP_Textures-3.0.0.zip'
+    # GPP Secondary
+    'https://github.com/Galileo88/Galileos-Planet-Pack/releases/download/1.5.88/Galileos.Planet.Pack.1.5.88.zip'
+    # SSRSS
+    'https://github.com/Galileo88/SSRSSContinued/releases/download/v0.0.3.1/SSRSS.v0.0.3.1.zip'
+    # Stock Visual Terrain
+    'https://github.com/Galileo88/Stock-Visual-Terrain/releases/download/2.0.8/SVT.v2.0.8.zip'
+    # Stock Visual Enhancements HR
+    'https://github.com/Galileo88/StockVisualEnhancements/releases/download/1.0.2/SVE_HighResTextures.zip'
+    # Stock Visual Enhancements MR
+    'https://github.com/Galileo88/StockVisualEnhancements/releases/download/1.0.2/SVE_MedResTextures.zip'
+    # Stock Visual Enhancements LR
+    'https://github.com/Galileo88/StockVisualEnhancements/releases/download/1.0.2/SVE_LowResTextures.zip'
+    # OPM Galileo
+    'https://github.com/Galileo88/OPM_Galileo/releases/download/1.2.4/OPM_Galileo.v1.2.4.zip'
+    # Vens Stock Revamp
+    'https://github.com/VenVen/Stock-Revamp/releases/download/v1.9.6/Stock-Revamp-master.zip'
+    # Community Terrain Texture Pack
+    'https://github.com/Galileo88/Community-Terrain-Texture-Pack/releases/download/1.0.1/CTTP.v1.0.1.zip'
+    # B9
+    'https://github.com/blowfishpro/B9-Aerospace/releases/download/v6.4.0/B9_Aerospace_6-4-0.zip'
+    'https://github.com/blowfishpro/B9-Aerospace/releases/download/v6.4.0/B9_Aerospace_Legacy_6-4-0.zip'
+    # Kerbinside GAP
+    'https://github.com/Keniamin/KerbinSideGAP/releases/download/2.2/KerbinSideGAP-2.2.zip'
+    # Kerbalized SpaceX
+    'https://github.com/jharri74/Dragon2/releases/download/1.26/KerbalizedSpaceX.zip'
+    # EVE
+    'https://github.com/WazWaz/EnvironmentalVisualEnhancements/releases/download/EVE-1.2.2-1/EnvironmentalVisualEnhancements-Configs-1.2.2.1.zip'
+    # kOS
+    'https://github.com/KSP-KOS/KOS/releases/download/v1.1.3.2/kOS-v1.1.3.2.zip'
+    # BDArmory
+    'https://github.com/PapaJoesSoup/BDArmory/releases/download/v1.0.0/BDArmory.1.0.0_11042017.zip'
+    # KWRocketry
+    'https://github.com/linuxgurugamer/KWRocketryRedux/releases/download/3.1.4/KWRocketryRedux-3.1.4.zip'
+    # Kronkus
+    'https://github.com/MrChumley/Kronkus/releases/download/V1.3.4/KronkusV1-3-4.zip'
+)
+
+for url in "${URLS[@]}"
+do
+    echo "$url"
+    # No retries, don't move the cursor around for the progress bar, and timestamps might trigger S3 problems
+    wget -t 1 --progress=dot:mega "$url" &
+done
