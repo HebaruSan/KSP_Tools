@@ -1,0 +1,51 @@
+#!/bin/bash
+# Print a table of mods with version mismatches between their netkan and their forum thread
+# Dependencies: jq pup wget sha1sum sort mkdir
+
+# Cache forum threads per-day to save time and bandwidth
+SCRIPTNAME=$(basename $0)
+CACHEDIR="/tmp/$SCRIPTNAME-$(date +'%Y%m%d')"
+mkdir -p "$CACHEDIR"
+
+# Markdown table header
+echo '| Netkan | ksp_version | Forum thread | Links |'
+echo '| --- | --- | --- | ---- |'
+
+for NETKAN in *.netkan
+do
+    # Extract game version and home page from the file
+    # NOTE: Does not handle ksp_version_min or ksp_version_max
+    KSP_VERSION=$(jq --raw-output .ksp_version < "$NETKAN")
+    HOMEPAGE=$(jq --raw-output .resources.homepage < "$NETKAN")
+    # If we have a version and the homepage is on the forum
+    # NOTE: Ignores "ksp_version": "any"
+    if [[ $KSP_VERSION != null && $KSP_VERSION != any && $HOMEPAGE =~ ^https?://forum.kerbalspaceprogram.com ]]
+    then
+        # Use the SHA1 of the URL as the cache key
+        CACHEHASH=$(sha1sum <<< "$HOMEPAGE" | cut -d' ' -f1)
+        if [[ ! -e "$CACHEDIR/$CACHEHASH" ]]
+        then
+            # Download forum page to cache
+            wget -qO- "$HOMEPAGE" > "$CACHEDIR/$CACHEHASH"
+        fi
+        # Get title of forum thread from cache
+        TITLE=$(pup 'title text{}' < "$CACHEDIR/$CACHEHASH")
+        # Remove work in progress tag and KSP label to simplify parsing
+        TWEAKED_TITLE=$(echo -n "$TITLE" | sed -e 's/\[WIP\] *\|KSP *//')
+        # Check if title starts with a game version in format [1.3.0]
+        if [[ $TWEAKED_TITLE =~ ^\[v?([0-9]+(\.[0-9]+|\.[Xx])*)\] ]]
+        then
+            # Treat 1.3.x as equivalent to 1.3
+            TITLE_VERSION=$(echo -n "${BASH_REMATCH[1]}" | sed -e 's/\.[Xx]//')
+            # Print if they don't match
+            if [[ $KSP_VERSION != $TITLE_VERSION ]]
+            then
+                echo "| $NETKAN | $KSP_VERSION | $TITLE_VERSION | [netkan](https://github.com/KSP-CKAN/NetKAN/tree/master/NetKAN/$NETKAN) [forum]($HOMEPAGE) |"
+            fi
+        else
+            # Output non-conformant threads to STDERR for manual inspection
+            echo "| $NETKAN | $KSP_VERSION | $TITLE | [netkan](https://github.com/KSP-CKAN/NetKAN/tree/master/NetKAN/$NETKAN) [forum]($HOMEPAGE) |" >&2
+        fi
+    fi
+# Sort by forum version, then by netkan version, then by name
+done | sort -r -k 6,6 -k 4,4 -k 2,2
