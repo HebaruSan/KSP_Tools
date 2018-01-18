@@ -1,0 +1,93 @@
+#!/bin/bash
+# Assess how likely it is that CKAN will introduce versioning errors for each netkan.
+# (Authors can make errors as well, but we can't do anything about that.)
+
+declare -A COUNT
+incr() {
+    COUNT[$1]=$((1+${COUNT[$1]:-0}))
+}
+
+for NETKAN in *.netkan
+do
+    # If there's a $vref, that's means the author directly controls the versions.
+    VREF=$(jq --raw-output '.["$vref"]' < "$NETKAN")
+    if [[ -n $VREF && $VREF != null ]]
+    then
+        echo "$NETKAN safe, \$vref: $VREF" >&2
+        incr 'With vref'
+        continue
+    fi
+
+    # If it's hosted on SpaceDock or Curse, the author chooses version at upload.
+    # A meta-netkan also lets the author specify versions.
+    KREF=$(jq --raw-output '.["$kref"]' < "$NETKAN")
+    if [[ $KREF =~ spacedock|curse|netkan ]]
+    then
+        echo "$NETKAN safe, \$kref: $KREF" >&2
+        incr "$BASH_REMATCH kref"
+        continue
+    fi
+
+    # A mod with no kref has to be updated manually, but we can assume that will be done correctly
+    if [[ -z $KREF || $KREF = null ]]
+    then
+        echo "$NETKAN safe but cumbersome, no \$kref" >&2
+        incr 'No kref'
+        continue
+    fi
+
+    # If we reach this point, then there is a $kref, so new versions CAN be found automatically.
+    # However, we can't get the version info safely for such versions.
+    # That's only OK if it's game version independent.
+
+    # If the .netkan has version info, that's a risk.
+    KSP_VERSION=$(jq --raw-output .ksp_version < "$NETKAN")
+    if [[ -n $KSP_VERSION && $KSP_VERSION != null ]]
+    then
+        if [[ $KSP_VERSION = any ]]
+        then
+            echo "$NETKAN safe, KSP_VERSION: $KSP_VERSION" >&2h
+            incr 'Version is any'
+            continue
+        else
+            echo "$NETKAN unsafe, KSP_VERSION: $KSP_VERSION, \$kref: $KREF"
+            incr 'Hard coded KSP_VERSION'
+            continue
+        fi
+    fi
+
+    KSP_VERSION_MIN=$(jq --raw-output .ksp_version_min < "$NETKAN")
+    if [[ -n $KSP_VERSION_MIN && $KSP_VERSION_MIN != null ]]
+    then
+        echo "$NETKAN unsafe, KSP_VERSION_MIN: $KSP_VERSION_MIN, \$kref: $KREF"
+        incr 'Hard coded KSP_VERSION_MIN'
+        continue
+    fi
+
+    KSP_VERSION_MAX=$(jq --raw-output .ksp_version_max < "$NETKAN")
+    if [[ -n $KSP_VERSION_MAX && $KSP_VERSION_MAX != null ]]
+    then
+        echo "$NETKAN unsafe, KSP_VERSION_MAX: $KSP_VERSION_MAX, \$kref: $KREF"
+        incr 'Hard coded KSP_VERSION_MAX'
+        continue
+    fi
+
+    echo "$NETKAN safe, no version (=any)" >&2
+    incr 'No version'
+    continue
+
+done
+
+for DESCR in \
+        'With vref' \
+        'spacedock kref' \
+        'curse kref' \
+        'netkan kref' \
+        'No version' \
+        'Version is any' \
+        'Hard coded KSP_VERSION' \
+        'Hard coded KSP_VERSION_MIN' \
+        'Hard coded KSP_VERSION_MAX'
+do
+    echo "$DESCR:\t${COUNT[$DESCR]:-0}"
+done
