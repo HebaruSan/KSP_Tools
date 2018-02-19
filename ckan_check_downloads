@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Check the download URLs for all .ckan files found in target directory
+# and rename them to .frozen if download is unavailable.
+# Uses HTTP HEAD request instead of GET to avoid receiving full downloads.
+
+cd "${1:-$HOME/Downloads/KSP/CKAN-meta}"
+
+find . -name \*.ckan | while read CKANFILE
+do
+	URL=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.download)')
+	if [[ -n $URL ]]
+	then
+		if ! curl --head --silent --fail "$URL" > /dev/null
+		then
+			# Main download doesn't work. Look for it on archive.org.
+			URLHASH=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.download_hash.sha1)' | cut -c1-8)
+			# Some old ckan files don't have download_hash
+			if [[ -z $URLHASH || $URLHASH == null ]]
+			then
+				# Can't find archive URL. Assume not there.
+				FROZEN=$(echo "$CKANFILE" | sed -e 's/.ckan$/.frozen/')
+				mv --verbose "$CKANFILE" "$FROZEN"
+			else
+				# Can reconstruct archive URL. See if it works.
+				IDENTIFIER=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.identifier)')
+				VERSION=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.version)')
+				ARCHIVEURL="https://archive.org/download/${IDENTIFIER}-${VERSION}/${URLHASH}-${IDENTIFIER}-${VERSION}.zip"
+				if ! curl --head --silent --fail "$ARCHIVEURL" > /dev/null
+				then
+					# Neither URL works. Freeze it.
+					FROZEN=$(echo "$CKANFILE" | sed -e 's/.ckan$/.frozen/')
+					mv --verbose "$CKANFILE" "$FROZEN"
+				fi
+			fi
+		fi
+	fi
+done
