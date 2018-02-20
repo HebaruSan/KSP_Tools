@@ -24,7 +24,7 @@ do
 			else
 				# Can reconstruct archive URL. See if it works.
 				IDENTIFIER=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.identifier)')
-				VERSION=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.version)')
+				VERSION=$(jq -M --raw-output --unbuffered < "$CKANFILE" '(.version)' | sed -e 's/:/-/g')
 				ARCHIVEURL="https://archive.org/download/${IDENTIFIER}-${VERSION}/${URLHASH}-${IDENTIFIER}-${VERSION}.zip"
 				if ! curl --head --silent --fail "$ARCHIVEURL" > /dev/null
 				then
