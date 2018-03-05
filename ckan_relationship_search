@@ -1,0 +1,31 @@
+#!/bin/bash
+# CKAN relationship search
+
+if [[ $1 == "" || $2 == "" ]]
+then
+	echo 'Usage: ./ckan_relationship_search <depends|conflicts|recommends|suggests|supports> <identifier> [expression]'
+	echo '  `identifier` is the target mod to find'
+	echo '  `expression` is the jq expression to evaluate to print each match'
+	echo 'The default expression prints the identifier, version, and the selected relationships.'
+	exit 1
+fi
+
+# Find your CKAN exe and registry
+CKAN="$HOME/github/CKAN/_build/ckan.exe"
+while read -r LINE
+do
+	# Windows adds an extra \r
+	LINE=$(echo $LINE | tr -d '\r\n')
+	if [[ $LINE =~ ^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+Yes[[:space:]]+(.+)$ ]]
+	then
+		REGISTRY="${BASH_REMATCH[1]}/CKAN/registry.json"
+		break
+	fi
+done < <("$CKAN" ksp list | tail -n +3)
+
+REL=$1
+MOD=$2
+EXPR=${3:-"{identifier,version,$REL}"}
+
+jq --raw-output < "$REGISTRY" \
+	"[.available_modules[].module_version[] | select(.$REL and (.$REL | .[] | contains({name: \"$MOD\"}))) | $EXPR] | unique | .[]"
