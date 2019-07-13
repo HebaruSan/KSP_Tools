@@ -4,6 +4,16 @@ Command line utilities for automating common tasks related to [Kerbal Space Prog
 
 The contents of this repository are released into the public domain.
 
+## ckan_download_count_graph.py and plot_counts.gnuplot
+
+Extracts download counts from CKAN-meta for the given identifiers and plots them.
+
+```sh
+ckan_download_count_graph.py Hangar ManeuverNodeEvolved AllYAll NewTantares Astrogator TestFlight CameraTools KerbalXMod Kerbalized-SpaceX
+```
+
+![plot_counts screenshot](screenshots/plot_counts.png)
+
 ## ksp_set_locale
 
 ![ksp_set_locale screenshot](screenshots/ksp_set_locale.png)
@@ -33,7 +43,7 @@ NOTE: This tool does not account for staging or atmospheric ISP variation!
 Given the location of a Kerbal Space Program installation (defaults to default Steam library on Linux), parses the parts files and prints a table of the specific impulses of all stock engines in Perl hash format. Intended for updating `ksp_save_dv` above.
 
 ```
-$ ksp_engine_isps                                                   
+$ ksp_engine_isps
         'sepMotor1'     => 154, # solidBoosterSep
         'solidBooster_sm'       => 165, # solidBoosterRT-5
         'LaunchEscapeSystem'    => 180, # launchEscapeSystem
