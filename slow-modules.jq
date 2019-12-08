@@ -15,5 +15,7 @@
 | [range(1;length) as $i
    | .[$i-1] as $a
    | .[$i] as $b
-   | {id:$a.id, dur:($b.dt - $a.dt)}]
+   | {id:$b.id, dur:($b.dt - $a.dt)}]
 | sort_by(-.dur)
+| map([.dur, .id] | @tsv)
+| .[]
