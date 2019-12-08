@@ -6,12 +6,14 @@
 
 # Usage: wget -q -O - http://status.ksp-ckan.space/status/netkan.json | slow-modules.jq
 
-to_entries
- | map(select(.value.frozen != true)
-       | {id:.key, dt:(.value.last_checked[0:19]+"Z"|fromdate)})
- | sort_by(.dt)
- | [range(1;length) as $i
-    | .[$i-1] as $a
-    | .[$i] as $b
-    | {id:$a.id, dur:($b.dt - $a.dt)}]
- | sort_by(-.dur)
+(now - 3*60*60) as $cutoff
+| to_entries
+| map(select(.value.frozen != true)
+    | {id:.key, dt:(.value.last_checked[0:19]+"Z"|fromdate)}
+    | select(.dt >= $cutoff))
+| sort_by(.dt)
+| [range(1;length) as $i
+   | .[$i-1] as $a
+   | .[$i] as $b
+   | {id:$a.id, dur:($b.dt - $a.dt)}]
+| sort_by(-.dur)
