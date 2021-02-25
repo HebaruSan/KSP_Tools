@@ -3,6 +3,7 @@
 
 set terminal wxt size 800,600
 set key bottom right autotitle columnheader
+set datafile separator whitespace
 stats ARG1 nooutput
 set style data lines
 
